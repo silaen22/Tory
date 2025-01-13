@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게임 애플리케이션</title>
+    <style>
+        /* 기본 스타일 설정 */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f2f2f2;
+        }
+        #start-screen, #game-selection, #betting-section, #game-result {
+            display: none;
+            margin-top: 50px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        input {
+            padding: 5px;
+            margin: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 시작 화면: 이름과 소유 금액 입력 -->
+    <div id="start-screen">
+        <h1>!도박!</h1>
+        <label for="player-name">이름을 입력하세요:</label><br>
+        <input type="text" id="player-name" placeholder="이름"><br><br>
+        <label for="starting-amount">보유 금액을 입력하세요:</label><br>
+        <input type="number" id="starting-amount" min="0" placeholder="금액"><br><br>
+        <button id="start-game">시작</button>
+    </div>
+
+    <!-- 게임 선택 화면 -->
+    <div id="game-selection">
+        <h2>도박을 선택하세요</h2>
+        <button id="roulette">룰렛</button>
+        <button id="odd-even">홀짝</button>
+        <button id="horse-racing">경마</button>
+        <button id="rock-paper-scissors">가위바위보</button>
+    </div>
+
+    <!-- 배팅 입력 화면 -->
+    <div id="betting-section">
+        <h2 id="selected-game-title"></h2>
+        <div id="game-options"></div>
+        <label for="bet-amount">배팅 금액을 입력하세요:</label><br>
+        <input type="number" id="bet-amount" min="1" placeholder="금액"><br><br>
+        <button id="place-bet">시작</button>
+    </div>
+
+    <!-- 게임 결과 화면 -->
+    <div id="game-result">
+        <p id="result-output"></p>
+        <button id="continue">계속하기</button>
+        <button id="exit-game">도박 종료</button>
+    </div>
+
+    <script>
+        // 플레이어 정보 및 게임 상태 변수
+        let playerName = '';
+        let startingAmount = 0;
+        let currentAmount = 0;
+        let selectedGame = '';
+        let bettingAmount = 0;
+        let gameChoice = ''; // 추가 선택 (홀/짝, 말 번호, 가위바위보)
+
+        // 구글 스프레드시트 웹 앱 URL (실제 URL로 교체 필요)
+         const googleSheetURL = 'https://script.google.com/macros/s/AKfycbxpScO0eaqEVyPCnFjNQsLZmuCiQDj8IS7DlZ6jnD3d799o4BD8cqh-AybkMBHMM38GaQ/exec';
+
+        // DOM 요소 가져오기
+        const startScreen = document.getElementById('start-screen');
+        const gameSelection = document.getElementById('game-selection');
+        const bettingSection = document.getElementById('betting-section');
+        const gameResult = document.getElementById('game-result');
+
+        const startGameBtn = document.getElementById('start-game');
+        const rouletteBtn = document.getElementById('roulette');
+        const oddEvenBtn = document.getElementById('odd-even');
+        const horseRacingBtn = document.getElementById('horse-racing');
+        const rpsBtn = document.getElementById('rock-paper-scissors');
+        const placeBetBtn = document.getElementById('place-bet');
+        const continueBtn = document.getElementById('continue');
+        const exitGameBtn = document.getElementById('exit-game');
+
+        const selectedGameTitle = document.getElementById('selected-game-title');
+        const gameOptions = document.getElementById('game-options');
+        const resultOutput = document.getElementById('result-output');
+
+        // 시작 화면 표시
+        startScreen.style.display = 'block';
+
+        // '도박 시작' 버튼 클릭 시
+        startGameBtn.addEventListener('click', () => {
+            const nameInput = document.getElementById('player-name').value.trim();
+            const amountInput = parseInt(document.getElementById('starting-amount').value);
+
+            if (nameInput === '' || isNaN(amountInput) || amountInput < 0) {
+                alert('이름과 시작 금액을 입력해주세요.');
+                return;
+            }
+
+            playerName = nameInput;
+            startingAmount = amountInput;
+            currentAmount = startingAmount;
+
+            startScreen.style.display = 'none';
+            gameSelection.style.display = 'block';
+        });
+
+        // 게임 선택 버튼들에 이벤트 리스너 추가
+        rouletteBtn.addEventListener('click', () => selectGame('roulette'));
+        oddEvenBtn.addEventListener('click', () => selectGame('odd-even'));
+        horseRacingBtn.addEventListener('click', () => selectGame('horse-racing'));
+        rpsBtn.addEventListener('click', () => selectGame('rock-paper-scissors'));
+
+        // 게임 선택 함수
+        function selectGame(game) {
+            selectedGame = game;
+            selectedGameTitle.innerText = `${getGameName(game)} 게임을 선택했습니다.`;
+            gameOptions.innerHTML = ''; // 이전 옵션 초기화
+
+            // 게임별 추가 옵션 생성
+            if (game === 'roulette') {
+                // 룰렛은 추가 선택 없음
+            }
+            else if (game === 'odd-even') {
+                createOddEvenOptions();
+            }
+            else if (game === 'horse-racing') {
+                createHorseRacingOptions();
+            }
+            else if (game === 'rock-paper-scissors') {
+                createRPSOptions();
+            }
+
+            gameSelection.style.display = 'none';
+            bettingSection.style.display = 'block';
+        }
+
+        // 게임 이름 반환 함수
+        function getGameName(game) {
+            switch(game) {
+                case 'roulette': return '룰렛';
+                case 'odd-even': return '홀짝';
+                case 'horse-racing': return '경마';
+                case 'rock-paper-scissors': return '가위바위보';
+                default: return '';
+            }
+        }
+
+        // 홀짝 선택 옵션 생성
+        function createOddEvenOptions() {
+            const oddBtn = document.createElement('button');
+            oddBtn.innerText = '홀';
+            oddBtn.id = 'odd';
+            const evenBtn = document.createElement('button');
+            evenBtn.innerText = '짝';
+            evenBtn.id = 'even';
+            gameOptions.appendChild(oddBtn);
+            gameOptions.appendChild(evenBtn);
+
+            // 버튼 클릭 시 선택 상태 저장
+            oddBtn.addEventListener('click', () => selectChoice('홀'));
+            evenBtn.addEventListener('click', () => selectChoice('짝'));
+        }
+
+        // 경마 선택 옵션 생성
+        function createHorseRacingOptions() {
+            for(let i=1; i<=6; i++) {
+                const horseBtn = document.createElement('button');
+                horseBtn.innerText = `${i}번 말`;
+                horseBtn.id = `horse-${i}`;
+                gameOptions.appendChild(horseBtn);
+
+                // 버튼 클릭 시 선택 상태 저장
+                horseBtn.addEventListener('click', () => selectChoice(i));
+            }
+        }
+
+        // 가위바위보 선택 옵션 생성
+        function createRPSOptions() {
+            const scissorsBtn = document.createElement('button');
+            scissorsBtn.innerText = '가위';
+            scissorsBtn.id = 'scissors';
+            const rockBtn = document.createElement('button');
+            rockBtn.innerText = '바위';
+            rockBtn.id = 'rock';
+            const paperBtn = document.createElement('button');
+            paperBtn.innerText = '보';
+            paperBtn.id = 'paper';
+            gameOptions.appendChild(scissorsBtn);
+            gameOptions.appendChild(rockBtn);
+            gameOptions.appendChild(paperBtn);
+
+            // 버튼 클릭 시 선택 상태 저장
+            scissorsBtn.addEventListener('click', () => selectChoice('가위'));
+            rockBtn.addEventListener('click', () => selectChoice('바위'));
+            paperBtn.addEventListener('click', () => selectChoice('보'));
+        }
+
+        // 선택된 옵션 저장 함수
+        function selectChoice(choice) {
+            gameChoice = choice;
+            // 선택된 버튼 비활성화
+            Array.from(gameOptions.children).forEach(button => {
+                button.disabled = true;
+            });
+        }
+
+        // '배팅 시작' 버튼 클릭 시
+        placeBetBtn.addEventListener('click', () => {
+            bettingAmount = parseInt(document.getElementById('bet-amount').value);
+            if (isNaN(bettingAmount) || bettingAmount <= 0) {
+                alert('유효한 배팅 금액을 입력하세요.');
+                return;
+            }
+            if (bettingAmount > currentAmount) {
+                alert('소유 금액보다 더 많은 금액을 배팅할 수 없습니다.');
+                return;
+            }
+
+            // 게임 로직 실행
+            playGame();
+        });
+
+        // 게임 로직 실행 함수
+        function playGame() {
+            let outcome = '';
+            let change = 0;
+
+            switch(selectedGame) {
+                case 'roulette':
+                    const randRoulette = Math.random();
+                    if(randRoulette < 0.30) { // 30% 확률로 배팅 금액만큼 얻음
+                        outcome = '성공! 배팅 금액만큼 얻었습니다.';
+                        change = bettingAmount;
+                    }
+                    else if(randRoulette < 0.60) { // 30% 확률로 배팅 금액만큼 잃음
+                        outcome = '실패! 배팅 금액만큼 잃었습니다.';
+                        change = -bettingAmount;
+                    }
+                    else if(randRoulette < 0.75) { // 15% 확률로 배팅 금액의 2배 얻음
+                        outcome = '성공! 배팅 금액의 2배를 얻었습니다.';
+                        change = bettingAmount * 2;
+                    }
+                    else if(randRoulette < 0.90) { // 15% 확률로 배팅 금액의 2배 잃음
+                        outcome = '실패! 배팅 금액의 2배를 잃었습니다.';
+                        change = -bettingAmount * 2;
+                    }
+                    else if(randRoulette < 0.95) { // 5% 확률로 배팅 금액의 3배 얻음
+                        outcome = '대성공! 배팅 금액의 3배를 얻었습니다.';
+                        change = bettingAmount * 3;
+                    }
+                    else { // 5% 확률로 배팅 금액의 3배 잃음
+                        outcome = '대실패! 배팅 금액의 3배를 잃었습니다.';
+                        change = -bettingAmount * 3;
+                    }
+                    break;
+                case 'odd-even':
+                    if(gameChoice === '') {
+                        alert('홀짝을 선택하세요.');
+                        return;
+                    }
+                    const die = Math.floor(Math.random() * 6) + 1; // 1~6 랜덤
+                    const dieResult = die % 2 === 0 ? '짝' : '홀';
+                    if(gameChoice === dieResult) {
+                        outcome = `성공! 주사위는 ${die} (${dieResult}) 나왔습니다. 배팅 금액만큼 얻었습니다.`;
+                        change = bettingAmount;
+                    }
+                    else {
+                        outcome = `실패! 주사위는 ${die} (${dieResult}) 나왔습니다. 배팅 금액을 잃었습니다.`;
+                        change = -bettingAmount;
+                    }
+                    break;
+                case 'horse-racing':
+                    if(gameChoice === '') {
+                        alert('경마에서 말을 선택하세요.');
+                        return;
+                    }
+                    const chosenHorse = gameChoice;
+                    const winningHorse = Math.floor(Math.random() * 6) + 1; // 1~6 랜덤
+                    if(chosenHorse === winningHorse) { // 1등
+                        outcome = `성공! ${chosenHorse}번 말이 1등을 했습니다. 배팅 금액의 3배를 획득했습니다.`;
+                        change = bettingAmount * 3;
+                    }
+                    else {
+                        // 2등과 3등을 위한 계산
+                        // 다른 말 중 2등과 3등을 랜덤으로 정함
+                        let secondHorse, thirdHorse;
+                        do {
+                            secondHorse = Math.floor(Math.random() * 6) + 1;
+                        } while(secondHorse === winningHorse);
+                        do {
+                            thirdHorse = Math.floor(Math.random() * 6) + 1;
+                        } while(thirdHorse === winningHorse || thirdHorse === secondHorse);
+                        
+                        if(chosenHorse === secondHorse) { // 2등
+                            outcome = `성공! ${secondHorse}번 말이 2등을 했습니다. 배팅 금액의 2배를 획득했습니다.`;
+                            change = bettingAmount * 2;
+                        }
+                        else if(chosenHorse === thirdHorse) { // 3등
+                            outcome = `${thirdHorse}번 말이 3등을 했습니다. 배팅 금액의 0.5배를 획득했습니다.`;
+                            change = Math.floor(bettingAmount * 0.5);
+                        }
+                        else { // 그 외
+                            outcome = `실패! ${chosenHorse}번 말이 졌습니다. 배팅 금액을 잃었습니다.`;
+                            change = -bettingAmount;
+                        }
+                    }
+                    break;
+                case 'rock-paper-scissors':
+                    if(gameChoice === '') {
+                        alert('가위, 바위, 보 중 하나를 선택하세요.');
+                        return;
+                    }
+                    const playerChoice = gameChoice;
+                    const choices = ['가위','바위','보'];
+                    const computerChoice = choices[Math.floor(Math.random() * 3)];
+                    let rpsResult = '';
+                    
+                    if(playerChoice === computerChoice) {
+                        rpsResult = '비김';
+                        change = bettingAmount; // 비길 시 배팅 금액의 1배 획득
+                        outcome = `비김! 상대는 ${computerChoice}를 선택했습니다. 배팅 금액의 1배를 획득했습니다.`;
+                    }
+                    else if(
+                        (playerChoice === '가위' && computerChoice === '보') ||
+                        (playerChoice === '바위' && computerChoice === '가위') ||
+                        (playerChoice === '보' && computerChoice === '바위')
+                    ) {
+                        rpsResult = '승리';
+                        change = bettingAmount * 2; // 승리 시 배팅 금액의 2배 획득
+                        outcome = `승리! 상대는 ${computerChoice}를 선택했습니다. 배팅 금액의 2배를 획득했습니다.`;
+                    }
+                    else {
+                        rpsResult = '패배';
+                        change = -bettingAmount * 3; // 패배 시 배팅 금액의 3배 잃음
+                        outcome = `패배! 상대는 ${computerChoice}를 선택했습니다. 배팅 금액의 3배를 잃었습니다.`;
+                    }
+                    break;
+                default:
+                    alert('알 수 없는 게임입니다.');
+                    return;
+            }
+
+            // 소유 금액 업데이트
+            currentAmount += change;
+
+            // 결과 출력
+            resultOutput.innerText = `${outcome}\n현재 소유 금액: ${currentAmount}원`;
+
+            // 게임 결과 화면 표시
+            bettingSection.style.display = 'none';
+            gameResult.style.display = 'block';
+
+            // 구글 스프레드시트에 기록
+            logToGoogleSheets(outcome, change);
+
+            // 파산 여부 확인
+            if(currentAmount < 0) {
+                alert('파산! 더 이상 도박을 진행할 수 없습니다.');
+                gameResult.style.display = 'none';
+            }
+        }
+
+        // 구글 스프레드시트에 데이터 기록 함수
+function logToGoogleSheets(resultText, amountChange) {
+    fetch(googleSheetURL, {
+        method: 'POST',
+        mode: 'cors',  // CORS 모드 설정
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            name: playerName,
+            currentAmount: currentAmount,
+            selectedGame: getGameName(selectedGame),
+            bettingAmount: bettingAmount,
+            gameResult: resultText,
+            amountChange: amountChange
+        })
+    })
+    .then(response => {
+        // 응답에 CORS 헤더가 있는지 확인
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('스프레드시트에 기록 성공:', data);
+    })
+    .catch((error) => {
+        console.error('스프레드시트에 기록 실패:', error);
+    });
+}
+
+        // '계속하기' 버튼 클릭 시
+        continueBtn.addEventListener('click', () => {
+            if(currentAmount <= 0) {
+                alert('파산하셨습니다! 더 이상 도박을 진행할 수 없습니다.');
+                gameResult.style.display = 'none';
+                return;
+            }
+            gameResult.style.display = 'none';
+            bettingSection.style.display = 'none';
+            gameSelection.style.display = 'block';
+            // 선택값 초기화
+            gameChoice = '';
+        });
+
+        // '게임 종료' 버튼 클릭 시
+        exitGameBtn.addEventListener('click', () => {
+            alert(`게임을 종료합니다. 최종 소유 금액: ${currentAmount}원`);
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>
