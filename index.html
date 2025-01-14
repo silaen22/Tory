@@ -73,10 +73,8 @@
         let bettingAmount = 0;
         let gameChoice = ''; // 추가 선택 (홀/짝, 말 번호, 가위바위보)
 
-// GitHub API URL
-const githubAPIURL = 'https://silaen22.github.io/data/';
-const githubToken = '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';
-
+        // 구글 스프레드시트 웹 앱 URL (실제 URL로 교체 필요)
+         const googleSheetURL = 'https://script.google.com/macros/s/AKfycbwjOQ06JRodz4Y7hVgvVv7Gamksq-DEziDcN3VvfomEtn--k1Mvwlr4AMcFB1V9StBTFg/exec';
 
         // DOM 요소 가져오기
         const startScreen = document.getElementById('start-screen');
@@ -364,10 +362,8 @@ const githubToken = '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';
             bettingSection.style.display = 'none';
             gameResult.style.display = 'block';
 
-
-            // GitHub에 기록
-logToGithub(outcome, change);
-
+            // 구글 스프레드시트에 기록
+            logToGoogleSheets(outcome, change);
 
             // 파산 여부 확인
             if(currentAmount < 0) {
@@ -376,35 +372,32 @@ logToGithub(outcome, change);
             }
         }
 
-        // GitHub에 데이터 기록 함수
-function logToGithub(resultText, amountChange) {
-    const issueData = {
-        title: `게임 결과 - ${playerName}`,
-        body: `게임: ${getGameName(selectedGame)}\n결과: ${resultText}\n현재 금액: ${currentAmount}원\n배팅 금액: ${bettingAmount}원\n변경 금액: ${amountChange}원`
-    };
-
-    fetch(githubAPIURL, {
-        method: 'POST',
-        headers: {
-            'Authorization': `token ${githubToken}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(issueData)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+        // 구글 스프레드시트에 데이터 기록 함수
+        function logToGoogleSheets(resultText, amountChange) {
+            // Fetch를 이용한 POST 요청
+            fetch(googleSheetURL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: playerName,
+                    currentAmount: currentAmount,
+                    selectedGame: getGameName(selectedGame),
+                    bettingAmount: bettingAmount,
+                    gameResult: resultText,
+                    amountChange: amountChange
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('스프레드시트에 기록 성공:', data);
+            })
+            .catch((error) => {
+                console.error('스프레드시트에 기록 실패:', error);
+            });
         }
-        return response.json();
-    })
-    .then(data => {
-        console.log('GitHub에 기록 성공:', data);
-    })
-    .catch((error) => {
-        console.error('GitHub에 기록 실패:', error);
-    });
-}
 
         // '계속하기' 버튼 클릭 시
         continueBtn.addEventListener('click', () => {
