@@ -65,16 +65,42 @@
     </div>
 
     <script>
-        // 플레이어 정보 및 게임 상태 변수
-        let playerName = '';
-        let startingAmount = 0;
-        let currentAmount = 0;
-        let selectedGame = '';
-        let bettingAmount = 0;
-        let gameChoice = ''; // 추가 선택 (홀/짝, 말 번호, 가위바위보)
+    // 구글 스프레드시트 ID 및 API 키 설정
+    const spreadsheetId = '12wYy3WzfVRn6F9QA0OIM67vf78mHNecY67Z5tk8K2C0'; // 스프레드시트 ID를 여기에 입력
+    const apiKey = '29bca360f42516707f8105bcb7ef5340b66e6840'; // 생성한 API 키를 여기에 입력
 
-        // 구글 스프레드시트 웹 앱 URL (실제 URL로 교체 필요)
-         const googleSheetURL = 'https://script.google.com/macros/s/AKfycbxBUWbPlHCySAwacvcYX4cfDnXxCkWRIF12oJ3ZTWoSDGKqQqULI0vD1IXNkbmlDg/exec';
+    // 구글 스프레드시트 웹 앱 URL (실제 URL로 교체 필요)
+    const googleSheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:F1:append?valueInputOption=USER_ENTERED&key=${apiKey}`;
+
+    // 플레이어 정보 및 게임 상태 변수
+    let playerName = '';
+    let startingAmount = 0;
+    let currentAmount = 0;
+    let selectedGame = '';
+    let bettingAmount = 0;
+    let gameChoice = ''; // 추가 선택 (홀/짝, 말 번호, 가위바위보)
+
+    // 스프레드시트에 데이터 추가 함수
+    const addDataToSheet = (data) => {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:F1:append?valueInputOption=USER_ENTERED&key=${apiKey}`;
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                values: [data] // 추가할 데이터 배열
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log('데이터 추가 성공:', result);
+        })
+        .catch(error => {
+            console.error('데이터 추가 실패:', error);
+        });
+    };
 
         // DOM 요소 가져오기
         const startScreen = document.getElementById('start-screen');
@@ -232,10 +258,10 @@
             playGame();
         });
 
-        // 게임 로직 실행 함수
-        function playGame() {
-            let outcome = '';
-            let change = 0;
+// 게임 로직 실행 함수
+function playGame() {
+    let outcome = '';
+    let change = 0;
 
             switch(selectedGame) {
                 case 'roulette':
@@ -352,25 +378,27 @@
                     return;
             }
 
-            // 소유 금액 업데이트
-            currentAmount += change;
+             // 소유 금액 업데이트
+    currentAmount += change;
 
-            // 결과 출력
-            resultOutput.innerText = `${outcome}\n현재 소유 금액: ${currentAmount}원`;
+    // 결과 출력
+    resultOutput.innerText = `${outcome}\n현재 소유 금액: ${currentAmount}원`;
 
-            // 게임 결과 화면 표시
-            bettingSection.style.display = 'none';
-            gameResult.style.display = 'block';
+    // 게임 결과 화면 표시
+    bettingSection.style.display = 'none';
+    gameResult.style.display = 'block';
 
-            // 구글 스프레드시트에 기록
-            logToGoogleSheets(outcome, change);
+// 구글 스프레드시트에 기록
+const newData = [new Date().toISOString(), playerName, currentAmount, getGameName(selectedGame), outcome, bettingAmount];
+addDataToSheet(newData); // 데이터 추가 함수 호출
 
-            // 파산 여부 확인
-            if(currentAmount < 0) {
-                alert('파산! 더 이상 도박을 진행할 수 없습니다.');
-                gameResult.style.display = 'none';
-            }
-        }
+
+    // 파산 여부 확인
+    if (currentAmount < 0) {
+        alert(`파산! 현재 보유 자산: ${currentAmount}원. 더 이상 도박을 진행할 수 없습니다.`);
+        gameResult.style.display = 'none';
+    }
+}
 
         // 구글 스프레드시트에 데이터 기록 함수
         function logToGoogleSheets(resultText, amountChange) {
